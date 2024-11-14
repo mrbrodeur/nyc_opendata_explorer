@@ -25,8 +25,18 @@ def load_data(data_id):
 
 if data_id:
     df = load_data(data_id)
+    
+    # convert strings as dates
+    for col in df.columns:
+        date_test = pd.to_datetime(df[col], errors='coerce')
+        is_datetime_column = date_test.isnull().sum() == 0
+        if is_datetime_column:
+            df[col] = pd.to_datetime(df[col])
+
 else:
     st.warning('No dataset selected. Please go back.')
+    df = None
+
 
 metadata = pd.read_json('data.json')
 metadata = metadata[metadata['id'] == data_id].to_dict('records')[0]
