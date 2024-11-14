@@ -31,7 +31,7 @@ else:
 metadata = pd.read_json('data.json')
 metadata = metadata[metadata['id'] == data_id].to_dict('records')[0]
 
-st.page_link("menu.py", label="Home", icon="🏠")
+st.page_link("menu.py", label="Dataset Index", icon="⬅️")
 st.title(metadata['name'])
 with st.container(border=True):
     st.text(metadata['description'])
@@ -73,17 +73,15 @@ for column in df.columns:
     except:
         pass
 
-df_coordinates = df.dropna(subset=[latitude, longitude], how='any')
-df_coordinates[latitude] = df_coordinates[latitude].astype(float)
-df_coordinates[longitude] = df_coordinates[longitude].astype(float)
+print([latitude, longitude])
 
 if latitude and longitude:
+    df_coordinates = df.dropna(subset=[latitude, longitude], how='any')
+    df_coordinates[latitude] = df_coordinates[latitude].astype(float)
+    df_coordinates[longitude] = df_coordinates[longitude].astype(float)
     st.divider()
     st.header("Map")
     # st.map(df_coordinates, longitude=longitude,latitude=latitude, size=1)
-
-
-        
 
     options = df_coordinates.columns
     selection = st.segmented_control(
