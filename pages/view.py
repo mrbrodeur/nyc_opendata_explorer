@@ -51,9 +51,7 @@ with st.container(border=True):
 
 column_choices = df.columns.values.tolist()
 
-column_choices = [item for item in column_choices if item not in ['x', 'y']]
-column_choices = [item for item in column_choices if not item.startswith(':@')]
-st.header("Table")
+st.header("Raw Data")
 options = st.multiselect(
     'Select which columns to show (showing first 6 by default)',
      column_choices, column_choices[:7])
@@ -72,8 +70,6 @@ for column in df.columns:
             longitude = column 
     except:
         pass
-
-print([latitude, longitude])
 
 if latitude and longitude:
     df_coordinates = df.dropna(subset=[latitude, longitude], how='any')
@@ -103,7 +99,6 @@ if latitude and longitude:
     )
 
     tooltip_html = "<div style='max-width:250px'>" + "".join([f"<p>{{{s}}}</p>" for s in selection]) + "</div>"
-    print(tooltip_html)
 
     # Combined all of it and render a viewport
     r = pdk.Deck(
@@ -113,4 +108,15 @@ if latitude and longitude:
         tooltip={"html": tooltip_html, "style": {"color": "white"}},
     )
     st.pydeck_chart(r, height=600)
-    # update_map()
+   
+st.header("Pivot Table")
+value_selected = None
+grouping_selected = None
+grouping_selected = st.pills('Grouping column...  *Required', df.columns, key='pivot_group_select')
+column_selected = st.pills('Pivot columns... (optional)', df.columns, key='pivot_column_select')
+value_selected = st.pills('Value column...  *Required', df.columns, key='pivot_value_select')
+
+if value_selected and grouping_selected:
+    pivot_table = pd.pivot_table(df, values=value_selected, index=grouping_selected, columns=column_selected, aggfunc='count')
+    st.dataframe(pivot_table, use_container_width=True)
+
