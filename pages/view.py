@@ -1,6 +1,7 @@
 import streamlit as st
 import pydeck as pdk
 import pandas as pd
+import numpy as np
 import requests
 import json
 
@@ -25,13 +26,15 @@ def load_data(data_id):
 
 if data_id:
     df = load_data(data_id)
-    
+    df.dropna(how='all', inplace=True)
     # convert strings as dates
-    for col in df.columns:
-        date_test = pd.to_datetime(df[col], errors='coerce')
-        is_datetime_column = date_test.isnull().sum() == 0
-        if is_datetime_column:
-            df[col] = pd.to_datetime(df[col])
+    # for col in df.columns:
+    #     converted_col = pd.to_datetime(df[col], errors='coerce')
+    #     if converted_col.isnull().sum() == 0:
+    #         df[col] = converted_col
+    #     converted_col = pd.to_numeric(df[col], errors='coerce')
+    #     if converted_col.notna().all():
+    #         df.loc[col] = converted_col
 
 else:
     st.warning('No dataset selected. Please go back.')
@@ -83,8 +86,8 @@ for column in df.columns:
 
 if latitude and longitude:
     df_coordinates = df.dropna(subset=[latitude, longitude], how='any')
-    df_coordinates[latitude] = df_coordinates[latitude].astype(float)
-    df_coordinates[longitude] = df_coordinates[longitude].astype(float)
+    df_coordinates.loc[latitude] = df_coordinates.loc[latitude].astype(float)
+    df_coordinates.loc[longitude] = df_coordinates.loc[longitude].astype(float)
     st.divider()
     st.header("Map")
     # st.map(df_coordinates, longitude=longitude,latitude=latitude, size=1)
@@ -122,9 +125,20 @@ if latitude and longitude:
 st.header("Pivot Table")
 value_selected = None
 grouping_selected = None
+aggregation_type = 'count'
 grouping_selected = st.pills('Grouping column...  *Required', df.columns, key='pivot_group_select')
 column_selected = st.pills('Pivot columns... (optional)', df.columns, key='pivot_column_select')
 value_selected = st.pills('Value column...  *Required', df.columns, key='pivot_value_select')
+
+# will need to figure out how to reliable convert strings to numeric to enable sum and mean
+# aggregation_type = st.pills('Aggregation type...', ['count', 'sum', 'mean', 'min', 'max'])
+# aggfunc_map = {
+#     'count': 'count',
+#     'sum': np.sum,
+#     'mean': np.mean,
+#     'min': np.min,
+#     'max': np.max
+# }
 
 if value_selected and grouping_selected:
     pivot_table = pd.pivot_table(df, values=value_selected, index=grouping_selected, columns=column_selected, aggfunc='count')
