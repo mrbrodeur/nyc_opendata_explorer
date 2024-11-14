@@ -10,7 +10,9 @@ row_count = len(df)
 categories = ['Transportation', 'City Government', 'Housing & Development',
  'Social Services', 'Public Safety', 'Health', 'Environment', 'Education',
  'Business', 'Recreation', 'NYC BigApps']
+dataset_types = ['Dataset', 'Map', 'Filtered View', 'File or Document', 'Story', 'External Link', 'Chart', None]
 cat_selected = None
+type_selected = None
 dataframe_params = {
     'data': df_filtered,
     'column_order': ['name', 'category', 'views', 'updated', 'dataset_type', 'view'],
@@ -23,16 +25,19 @@ dataframe_params = {
 }
 
 st.title("NYC Opendata Explorer")
+st.markdown("This app is a visualizer for [NYC Open Data](http://opendata.cityofnewyork.us/). Some of the datasets are VERY large, so please be patient and let it load. It may take a few minutes.")
 
 with st.container(border=True):
     st.header('Filters')
     cat_selected = st.pills('Filter by category...', categories)
+    type_selected = st.pills('Filter by dataset type...', dataset_types)
     text_filter = st.text_input("Filter by name")
 
     if st.button('Reset Filters'):
         df_filtered = df
         text_filter = None
         cat_selected = None
+        type_selected = None
 
 st.header('Datasets')
 
@@ -47,6 +52,11 @@ if cat_selected:
 
 if text_filter:
     dataframe_params['data'] = df_filtered[df_filtered['name'].str.contains(text_filter.strip(), case=False)]
+    main_table.dataframe(**dataframe_params)
+    counter_metric.metric(label='Number of datasets', value=len(dataframe_params['data']))
+
+if type_selected:
+    dataframe_params['data'] = df_filtered[df_filtered['dataset_type'] == type_selected]
     main_table.dataframe(**dataframe_params)
     counter_metric.metric(label='Number of datasets', value=len(dataframe_params['data']))
 
