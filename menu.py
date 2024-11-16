@@ -5,19 +5,18 @@ st.set_page_config(layout="wide")
 
 df = pd.read_json('data.json')
 df['view'] = '/view?id=' + df['id']
-df = df[df['dataset_type'].isin(['Dataset'])]
 df.sort_values('name', inplace=True)
 df_filtered = df
+
 row_count = len(df)
 categories = ['Transportation', 'City Government', 'Housing & Development',
  'Social Services', 'Public Safety', 'Health', 'Environment', 'Education',
  'Business', 'Recreation', 'NYC BigApps']
-# dataset_types = ['Dataset', 'Map', 'Filtered View', 'File or Document', 'Story', 'External Link', 'Chart', None]
-cat_selected = None
-type_selected = None
+data_types = ['Dataset', 'Map', 'Filtered View', 'File or Document', 'Story', 'External Link', 'Chart', None]
+
 dataframe_params = {
     'data': df_filtered,
-    'column_order': ['name', 'category', 'views', 'updated', 'view'],
+    'column_order': ['name', 'category', 'views', 'updated', 'data_type', 'rows', 'view'],
     'column_config': {
         'view': st.column_config.LinkColumn('View', display_text='Explore'),
     },
@@ -29,10 +28,12 @@ dataframe_params = {
 st.title("NYC Opendata Explorer")
 st.markdown("This app is a visualizer for [NYC Open Data](http://opendata.cityofnewyork.us/). Some of the datasets are VERY large, so please be patient and let it load. It may take a few minutes.")
 
+cat_selected = None
+type_selected = None
 with st.container(border=True):
     st.header('Filters')
     cat_selected = st.pills('Filter by category...', categories)
-    # type_selected = st.pills('Filter by dataset type...', dataset_types)
+    type_selected = st.pills('Filter by data type...', data_types)
     text_filter = st.text_input("Filter by name")
 
     if st.button('Reset Filters'):
@@ -57,8 +58,8 @@ if text_filter:
     main_table.dataframe(**dataframe_params)
     counter_metric.metric(label='Number of datasets', value=len(dataframe_params['data']))
 
-# if type_selected:
-#     dataframe_params['data'] = df_filtered[df_filtered['dataset_type'] == type_selected]
-#     main_table.dataframe(**dataframe_params)
-#     counter_metric.metric(label='Number of datasets', value=len(dataframe_params['data']))
+if type_selected:
+    dataframe_params['data'] = df_filtered[df_filtered['data_type'] == type_selected]
+    main_table.dataframe(**dataframe_params)
+    counter_metric.metric(label='Number of datasets', value=len(dataframe_params['data']))
 

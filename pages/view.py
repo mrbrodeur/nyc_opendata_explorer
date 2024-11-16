@@ -8,6 +8,7 @@ import json
 st.set_page_config(layout="wide")
 
 data_id = st.query_params.get("id")
+limited = False
 
 @st.cache_data()
 def load_data(data_id):
@@ -21,6 +22,9 @@ def load_data(data_id):
             offset += 1000
         else:
             break
+        if offset > 100000:
+            limited = True
+            break
     df = pd.DataFrame.from_dict(data_rows)
     return df
 
@@ -28,13 +32,14 @@ if data_id:
     df = load_data(data_id)
     df.dropna(how='all', inplace=True)
     # convert strings as dates
-    # for col in df.columns:
-    #     converted_col = pd.to_datetime(df[col], errors='coerce')
-    #     if converted_col.isnull().sum() == 0:
-    #         df[col] = converted_col
-    #     converted_col = pd.to_numeric(df[col], errors='coerce')
-    #     if converted_col.notna().all():
-    #         df.loc[col] = converted_col
+    for col in df.columns:
+        converted_col = pd.to_datetime(df[col], errors='coerce')
+        if converted_col.isnull().sum() == 0:
+            df[col] = converted_col
+        # this part to convert to numbers is not working right, and also seems to mess up the dates
+        # converted_col = pd.to_numeric(df[col], errors='coerce')
+        # if converted_col.notna().all():
+        #     df.loc[col] = converted_col
 
 else:
     st.warning('No dataset selected. Please go back.')
@@ -48,7 +53,7 @@ st.page_link("menu.py", label="Dataset Index", icon="⬅️")
 st.title(metadata['name'])
 with st.container(border=True):
     st.text(metadata['description'])
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.subheader(metadata['category'])
         st.caption("Category")
@@ -58,6 +63,10 @@ with st.container(border=True):
         st.caption("Views")
 
     with col3:
+        st.subheader(metadata['rows'])
+        st.caption("Rows")
+
+    with col4:
         st.subheader(metadata['updated'])
         st.caption("Last Updated")
 
@@ -86,8 +95,8 @@ for column in df.columns:
 
 if latitude and longitude:
     df_coordinates = df.dropna(subset=[latitude, longitude], how='any')
-    df_coordinates.loc[latitude] = df_coordinates.loc[latitude].astype(float)
-    df_coordinates.loc[longitude] = df_coordinates.loc[longitude].astype(float)
+    df_coordinates.loc[:,[latitude]] = df_coordinates.loc[:,[latitude]].astype(float)
+    df_coordinates.loc[:,[longitude]] = df_coordinates.loc[:,[longitude]].astype(float)
     st.divider()
     st.header("Map")
     # st.map(df_coordinates, longitude=longitude,latitude=latitude, size=1)
