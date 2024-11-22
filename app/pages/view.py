@@ -10,47 +10,6 @@ st.set_page_config(layout="wide")
 data_id = st.query_params.get("id")
 limited = False
 
-@st.cache_data()
-def load_data(data_id):
-    offset = 0
-    data_rows = []
-    while True:
-        uri = f'https://data.cityofnewyork.us/resource/{data_id}.json?$offset={offset}'
-        r = requests.get(uri).json()
-        if r:
-            data_rows += r
-            offset += 1000
-        else:
-            break
-        if offset > 100000:
-            limited = True
-            break
-
-    df = pd.DataFrame.from_dict(data_rows)
-    raw_df = df.copy()
-
-    df.dropna(how='all', inplace=True)
-    # go through each column, process, and look for data types
-    for col in df.columns:
-        # Skip non-string columns
-        if df[col].dtype != 'object':
-            continue
-        
-        # Remove any leading/trailing whitespace
-        series = df[col].str.strip()
-
-        # check if the column is datetime and convert
-        converted_col = functions.convert_column_to_date(series)
-        if not converted_col.empty:
-            df[col] = converted_col
-            continue
-
-        # # check if the column is numeric, and convert
-        converted_col = functions.convert_column_to_numeric(series)
-        if not converted_col.empty:
-            df[col] = converted_col
-    return df, raw_df
-
 st.page_link("menu.py", label="Dataset Index", icon="⬅️")
 
 if data_id:
@@ -67,8 +26,8 @@ if data_id:
         st.write(metadata)
 
     else:
-        df, raw_df = load_data(data_id)
-
+        df = functions.load_data(data_id)
+        print(df.dtypes)
         with st.container(border=True):
             st.text(metadata['description'])
             col1, col2, col3, col4 = st.columns(4)
@@ -91,7 +50,6 @@ if data_id:
 
         column_choices = df.columns.values.tolist()
 
-        st.header("Raw Data")
         options = st.multiselect(
             'Select which columns to show. Click the \'x\' at the right to clear all selected columns.',
             column_choices, column_choices)
@@ -107,12 +65,9 @@ if data_id:
 
         if latitude and longitude:
             # drop any na values
-            df_coordinates = raw_df.dropna(subset=[latitude, longitude], how='any')
+            df_coordinates = df.copy().dropna(subset=[latitude, longitude], how='any')
             # drop any rows that have a 0 in the lat or long
             df_coordinates = df_coordinates.loc[~((df_coordinates[latitude].isin([0,1])) | (df_coordinates[longitude].isin([0,1])))]
-
-            df_coordinates.loc[:,[latitude]] = df_coordinates.loc[:,[latitude]].astype(float)
-            df_coordinates.loc[:,[longitude]] = df_coordinates.loc[:,[longitude]].astype(float)
 
             # Ensure the data is converted to a list of lists for coordinates
             st.divider()

@@ -1,4 +1,6 @@
 import pandas as pd
+import streamlit as st
+import requests
 
 def is_latitude(series):
     try:
@@ -12,6 +14,7 @@ def is_latitude(series):
     except Exception:
         return False
     
+
 def is_longitude(series):
     try:
         min_val = series.astype(float).loc[~series.isin([0,1])].min()
@@ -24,14 +27,8 @@ def is_longitude(series):
     except Exception:
         return False
 
-def convert_column_to_date(series):
 
-    # do not process lat or long columns
-    if is_latitude(series):
-        return pd.Series(dtype=str)
-    
-    elif is_longitude(series):
-        return pd.Series(dtype=str)
+def convert_column_to_date(series):
     
     try:
             
@@ -64,6 +61,7 @@ def convert_column_to_date(series):
     except (ValueError, TypeError):
         return pd.Series(dtype=str)
     
+
 def convert_column_to_numeric(series):
     try:
         converted_col = pd.to_numeric(series, errors='raise')
@@ -71,3 +69,52 @@ def convert_column_to_numeric(series):
         
     except Exception:
         return pd.Series(dtype=str)
+    
+
+@st.cache_data()
+def load_data(data_id):
+    '''
+    Takes in a data_id and pings the API to retieve the data. Converts numeric columns using 
+    to_numeric, and then date columns using to_datetime
+    '''
+    offset = 0
+    data_rows = []
+    while True:
+        uri = f'https://data.cityofnewyork.us/resource/{data_id}.json?$offset={offset}'
+        r = requests.get(uri).json()
+        if r:
+            data_rows += r
+            offset += 1000
+        else:
+            break
+        if offset > 100000:
+            limited = True
+            break
+
+    df = pd.DataFrame.from_dict(data_rows)
+
+    df.dropna(how='all', inplace=True)
+    # go through each column, process, and look for data types
+    for col in df.columns:
+        # Skip non-string columns
+        if df[col].dtype != 'object':
+            continue
+        
+        # Remove any leading/trailing whitespace
+        series = df[col].str.strip()
+
+        # check if the column is numeric, and convert
+        # do this first, before datetime, because the datetime will try to convert some numbers
+        # but to_numeric will not pick up datetimes
+        converted_col = convert_column_to_numeric(series)
+        if not converted_col.empty:
+            df[col] = converted_col
+            continue
+
+        # check if the column is datetime and convert
+        converted_col = convert_column_to_date(series)
+        if not converted_col.empty:
+            df[col] = converted_col
+            continue
+
+    return df
