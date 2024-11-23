@@ -26,8 +26,7 @@ if data_id:
         st.write(metadata)
 
     else:
-        df = functions.load_data(data_id)
-        print(df.dtypes)
+        df, df_coordinates = functions.load_data(data_id)
         with st.container(border=True):
             st.text(metadata['description'])
             col1, col2, col3, col4 = st.columns(4)
@@ -36,44 +35,50 @@ if data_id:
                 st.caption("Category")
 
             with col2:
-                st.subheader(metadata['views'])
+                st.subheader(f"{metadata['views']:,}")
                 st.caption("Views")
 
             with col3:
-                st.subheader(metadata['rows'])
+                st.subheader(f"{metadata['rows']:,.0f}")
                 st.caption("Rows")
 
             with col4:
                 st.subheader(metadata['updated'])
                 st.caption("Last Updated")
-
-
-        column_choices = df.columns.values.tolist()
-
-        options = st.multiselect(
-            'Select which columns to show. Click the \'x\' at the right to clear all selected columns.',
-            column_choices, column_choices)
-        st.dataframe(df[options], hide_index=True)
-
+        
+        # SHOWING THE MAP FIRST
         latitude = None
         longitude = None
-        for col in df.columns:
-            if functions.is_latitude(df[col]):
-                latitude = col
-            elif functions.is_longitude(df[col]):
-                longitude = col
+        for col in df_coordinates.columns:
+            if functions.is_latitude(df_coordinates[col]):
+                if not latitude:
+                    latitude = col
+                    df_coordinates[col] = pd.to_numeric(df_coordinates[col], errors='coerce')
+            elif functions.is_longitude(df_coordinates[col]):
+                if not longitude:
+                    longitude = col
+                    df_coordinates[col] = pd.to_numeric(df_coordinates[col], errors='coerce')
 
         if latitude and longitude:
             # drop any na values
-            df_coordinates = df.copy().dropna(subset=[latitude, longitude], how='any')
+            df_coordinates = df_coordinates.dropna(subset=[latitude, longitude], how='any')
             # drop any rows that have a 0 in the lat or long
             df_coordinates = df_coordinates.loc[~((df_coordinates[latitude].isin([0,1])) | (df_coordinates[longitude].isin([0,1])))]
 
-            # Ensure the data is converted to a list of lists for coordinates
-            st.divider()
             st.header("Map")
-            # st.map(df_coordinates, longitude=longitude,latitude=latitude, size=1)
-
+            point_options_key = {
+                'very small': 5,
+                'small': 25,
+                'medium': 100,
+                'large': 250,
+                'very large': 1000,
+            }
+            point_selection = st.select_slider(
+                "Select the size of the points on the map",
+                options=['very small', 'small', 'medium', 'large', 'very large'],
+                value='medium',
+                )
+            point_selection_converted = point_options_key[point_selection]
             options = df_coordinates.columns
             selection = st.segmented_control(
                 "Select data to show on map", options, selection_mode="multi"
@@ -83,7 +88,7 @@ if data_id:
                 "ScatterplotLayer",
                 data=df_coordinates,
                 get_position=f"[{longitude}, {latitude}]",
-                get_radius=100,
+                get_radius=point_selection_converted,
                 get_color=[255, 0, 0, 140],
                 pickable=True,
             )
@@ -108,9 +113,21 @@ if data_id:
                 tooltip={"html": tooltip_html, "style": {"color": "white"}},
             )
             st.pydeck_chart(r, height=600)
-            
+
+        st.divider()
+
+        # SHOW THE DATAFRAME SECOND
+        st.header("View the Data")
+        column_choices = df.columns.values.tolist()
+        options = st.multiselect(
+            'Select which columns to show. Click the \'x\' at the right to clear all selected columns.',
+            column_choices, column_choices)
+        st.dataframe(df[options], hide_index=True)     
+
+        st.divider()   
         
-        st.header("Pivot Table")
+        # SHOW THE PIVOT TABLE THIRD
+        st.header("Make a Pivot Table")
         value_selected = None
         grouping_selected = None
         aggregation_type = 'count'

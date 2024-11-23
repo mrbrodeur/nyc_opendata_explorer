@@ -92,7 +92,7 @@ def load_data(data_id):
             break
 
     df = pd.DataFrame.from_dict(data_rows)
-
+    df_coordinates = df.copy()
     df.dropna(how='all', inplace=True)
     # go through each column, process, and look for data types
     for col in df.columns:
@@ -117,4 +117,4 @@ def load_data(data_id):
             df[col] = converted_col
             continue
 
-    return df
+    return df, df_coordinates
