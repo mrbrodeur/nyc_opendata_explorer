@@ -79,6 +79,7 @@ def load_data(data_id):
     '''
     offset = 0
     data_rows = []
+
     while True:
         uri = f'https://data.cityofnewyork.us/resource/{data_id}.json?$offset={offset}'
         r = requests.get(uri).json()
@@ -88,11 +89,9 @@ def load_data(data_id):
         else:
             break
         if offset > 100000:
-            limited = True
             break
 
     df = pd.DataFrame.from_dict(data_rows)
-    df_coordinates = df.copy()
     df.dropna(how='all', inplace=True)
     # go through each column, process, and look for data types
     for col in df.columns:
@@ -117,4 +116,6 @@ def load_data(data_id):
             df[col] = converted_col
             continue
 
+    df_coordinates = df.copy()
+    
     return df, df_coordinates
