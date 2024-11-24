@@ -1,6 +1,9 @@
 import pandas as pd
 import streamlit as st
 import requests
+import pydeck as pdk
+import random
+import string
 
 def is_latitude(series):
     try:
@@ -119,3 +122,65 @@ def load_data(data_id):
     df_coordinates = df.copy()
     
     return df, df_coordinates
+
+
+def get_lat_long(df_coordinates):
+    latitude = None
+    longitude = None
+    for col in df_coordinates.columns:
+        if is_latitude(df_coordinates[col]):
+            if not latitude:
+                latitude = col
+                df_coordinates[col] = pd.to_numeric(df_coordinates[col], errors='coerce')
+        elif is_longitude(df_coordinates[col]):
+            if not longitude:
+                longitude = col
+                df_coordinates[col] = pd.to_numeric(df_coordinates[col], errors='coerce')
+
+    return latitude, longitude
+
+def show_map(df_coordinates, latitude, longitude, point_selection_converted):
+    # drop any na values
+    df_coordinates = df_coordinates.dropna(subset=[latitude, longitude], how='any')
+    # drop any rows that have a 0 in the lat or long
+    df_coordinates = df_coordinates.loc[~((df_coordinates[latitude].isin([0,1])) | (df_coordinates[longitude].isin([0,1])))]
+
+    layer = pdk.Layer(
+        "ScatterplotLayer",
+        data=df_coordinates,
+        get_position=[longitude, latitude],
+        get_radius=point_selection_converted,
+        get_color=[255, 0, 0, 140],
+        pickable=True,
+    )
+    # Set the viewport location
+    long_mean = df_coordinates[longitude].mean()
+    lat_mean = df_coordinates[latitude].mean()
+    view_state = pdk.ViewState(
+        longitude=long_mean, 
+        latitude=lat_mean, 
+        zoom=10, 
+        min_zoom=6, 
+        max_zoom=15, 
+        pitch=0, 
+        bearing=0
+    )
+    
+    map_placeholder = st.empty()
+
+    selection = st.segmented_control(
+            "Select data to show on map", df_coordinates.columns, selection_mode="multi"
+        )
+    
+    tooltip_html = "<div style='max-width:250px'>" + "".join([f"<p>{{{s}}}</p>" for s in selection]) + "</div>"
+
+    # Combined all of it and render a viewport
+    r = pdk.Deck(
+        map_style="mapbox://styles/mapbox/light-v9",
+        layers=[layer],
+        initial_view_state=view_state,
+        tooltip={"html": tooltip_html, "style": {"color": "white"}},
+    )
+    map_placeholder.pydeck_chart(r, height=600)
+
+    st.divider()

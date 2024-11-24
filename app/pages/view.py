@@ -8,7 +8,6 @@ import functions
 st.set_page_config(layout="wide")
 
 data_id = st.query_params.get("id")
-limited = False
 
 st.page_link("menu.py", label="Dataset Index", icon="⬅️")
 
@@ -62,24 +61,9 @@ if data_id:
         
         if df is not None:
             # SHOWING THE MAP FIRST
-            latitude = None
-            longitude = None
-            for col in df_coordinates.columns:
-                if functions.is_latitude(df_coordinates[col]):
-                    if not latitude:
-                        latitude = col
-                        df_coordinates[col] = pd.to_numeric(df_coordinates[col], errors='coerce')
-                elif functions.is_longitude(df_coordinates[col]):
-                    if not longitude:
-                        longitude = col
-                        df_coordinates[col] = pd.to_numeric(df_coordinates[col], errors='coerce')
+            latitude, longitude = functions.get_lat_long(df_coordinates)
 
             if latitude and longitude:
-                # drop any na values
-                df_coordinates = df_coordinates.dropna(subset=[latitude, longitude], how='any')
-                # drop any rows that have a 0 in the lat or long
-                df_coordinates = df_coordinates.loc[~((df_coordinates[latitude].isin([0,1])) | (df_coordinates[longitude].isin([0,1])))]
-
                 st.header("Map")
                 point_options_key = {
                     'very small': 5,
@@ -94,42 +78,16 @@ if data_id:
                     value='medium',
                     )
                 point_selection_converted = point_options_key[point_selection]
-                options = df_coordinates.columns
-                selection = st.segmented_control(
-                    "Select data to show on map", options, selection_mode="multi"
-                )
+                try:
+                    functions.show_map(df_coordinates, latitude, longitude, point_selection_converted)
+                except TypeError:
+                    try:
+                        functions.show_map(df_coordinates[[latitude, longitude]], latitude, longitude, point_selection_converted)
+                    except TypeError:
+                        st.warning("Sorry, could not properly render the map.")
 
-                layer = pdk.Layer(
-                    "ScatterplotLayer",
-                    data=df_coordinates,
-                    get_position=f"[{longitude}, {latitude}]",
-                    get_radius=point_selection_converted,
-                    get_color=[255, 0, 0, 140],
-                    pickable=True,
-                )
-                # Set the viewport location
-                view_state = pdk.ViewState(
-                    longitude=df_coordinates[longitude].mean(), 
-                    latitude=df_coordinates[latitude].mean(), 
-                    zoom=10, 
-                    min_zoom=6, 
-                    max_zoom=15, 
-                    pitch=0, 
-                    bearing=0
-                )
-
-                tooltip_html = "<div style='max-width:250px'>" + "".join([f"<p>{{{s}}}</p>" for s in selection]) + "</div>"
-
-                # Combined all of it and render a viewport
-                r = pdk.Deck(
-                    map_style="mapbox://styles/mapbox/light-v9",
-                    layers=[layer],
-                    initial_view_state=view_state,
-                    tooltip={"html": tooltip_html, "style": {"color": "white"}},
-                )
-                st.pydeck_chart(r, height=600)
-
-                st.divider()
+            else:
+                st.info('No latitude and longitude columns found to make a map.', icon="ℹ️")
 
             # SHOW THE DATAFRAME SECOND
             st.header("View the Data")
